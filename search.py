@@ -11,8 +11,8 @@ from flask import Flask, render_template, request, jsonify
 from urllib.parse import urlparse
 from typing import Dict, List, Union
 
-APPNAME = 'GigaSearch_v3'
-VERSION = '3.2'
+APPNAME = 'GigaSearch_v2'
+VERSION = '0.7'
 
 BINDING_ADDRESS = '127.0.0.1'
 BINDING_PORT = 5000
