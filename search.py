@@ -10,10 +10,8 @@ from duckduckgo_search import DDGS
 from flask import Flask, render_template, request, jsonify
 from urllib.parse import urlparse
 from typing import Dict, List, Union
-
-APPNAME = 'GigaSearch_v2'
+APPNAME = 'GigaSearch_v3'
 VERSION = '0.7'
-
 BINDING_ADDRESS = '127.0.0.1'
 BINDING_PORT = 5000
 OLLAMA_BASE_URL = 'http://localhost:11434'
@@ -25,7 +23,6 @@ SEARCH_RESULT_COUNT = 7
 NEWS_RESULT_COUNT = 5
 TRIM_WIKIPEDIA_SUMMARY = True
 TRIM_WIKIPEDIA_LINES = 5
-
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
@@ -35,10 +32,8 @@ logging.basicConfig(
     ]
 )
 logger = logging.getLogger(__name__)
-
 source_links = []
 SEARCH_TYPE = ""
-
 class SearchParser:
     @staticmethod
     def parse_web_result(result: Dict) -> Dict:
@@ -61,7 +56,6 @@ class SearchParser:
             'encoding': result.get('encoding', ''),
             'links': result.get('links', [])
         }
-
     @staticmethod
     def parse_news_result(result: Dict) -> Dict:
         return {
@@ -79,7 +73,6 @@ class SearchParser:
             'location': result.get('location', ''),
             'related_articles': result.get('related_articles', [])
         }
-
 def search(search_query: str, num_results: int) -> List[Dict]:
     try:
         results = DDGS().text(search_query, max_results=num_results+3)
@@ -93,7 +86,6 @@ def search(search_query: str, num_results: int) -> List[Dict]:
     except Exception as e:
         logger.error(f"Ошибка поиска: {str(e)}")
         return []
-
 def news(search_query: str, num_results: int) -> List[Dict]:
     try:
         results = DDGS().news(search_query, max_results=num_results+3)
@@ -107,7 +99,6 @@ def news(search_query: str, num_results: int) -> List[Dict]:
     except Exception as e:
         logger.error(f"Ошибка новостей: {str(e)}")
         return []
-
 class WikipediaClient:
     @staticmethod
     def get_summary(page_title: str) -> Dict:
@@ -140,7 +131,6 @@ class WikipediaClient:
         except Exception as e:
             logger.error(f"Ошибка Википедии: {str(e)}")
             return {'title': 'N/A', 'summary': 'Нет данных', 'url': ''}
-
 def wikipedia(search_arg: str) -> Dict:
     try:
         results = DDGS().text(f"site:wikipedia.org {search_arg}", max_results=1)
@@ -153,7 +143,6 @@ def wikipedia(search_arg: str) -> Dict:
     except Exception as e:
         logger.error(f"Ошибка поиска Википедии: {str(e)}")
         return {}
-
 def generate_search_query(user_query: str) -> str:
     prompt = (
         "Ты — помощник, который формирует поисковые запросы для Google. "
@@ -167,7 +156,6 @@ def generate_search_query(user_query: str) -> str:
     if response and 'response' in response:
         return response['response'].strip()
     return user_query
-
 def perform_searches(query: str) -> Dict:
     logger.info("Сбор данных...")
     return {
@@ -175,17 +163,14 @@ def perform_searches(query: str) -> Dict:
         'web': search(query, SEARCH_RESULT_COUNT),
         'news': news(query, NEWS_RESULT_COUNT)
     }
-
 def format_results(data: Dict) -> str:
     output = []
-
     if data['wikipedia'].get('title'):
         output.append(
             f"Википедия: {data['wikipedia']['title']}\n"
             f"{data['wikipedia']['summary']}\n"
             f"Источник: {data['wikipedia']['url']}\n"
         )
-
     if data['web']:
         output.append("Веб-результаты:")
         for idx, result in enumerate(data['web'], 1):
@@ -194,7 +179,6 @@ def format_results(data: Dict) -> str:
                 f"   {result['snippet']}\n"
                 f"   {result['url']}\n"
             )
-
     if data['news']:
         output.append("Новости:")
         for idx, news_item in enumerate(data['news'], 1):
@@ -204,9 +188,7 @@ def format_results(data: Dict) -> str:
                 f"   {news_item['snippet']}\n"
                 f"   {news_item['url']}\n"
             )
-
     return '\n'.join(output)
-
 def ollama_query(prompt: str) -> Union[Dict, None]:
     try:
         response = requests.post(
@@ -217,7 +199,6 @@ def ollama_query(prompt: str) -> Union[Dict, None]:
     except Exception as e:
         logger.error(f"Ошибка API: {str(e)}")
         return None
-
 def _is_llama_online() -> bool:
     try:
         response = requests.get(OLLAMA_BASE_URL)
@@ -225,15 +206,12 @@ def _is_llama_online() -> bool:
     except Exception as e:
         logger.error(f"Ошибка подключения к Ollama: {e}")
         return False
-
 def process_query(search_query: str) -> str:
     if not _is_llama_online():
         return "Ошибка: Сервер ИИ недоступен."
-
     start_time = time.time()
     search_query = generate_search_query(search_query)
     logger.info(f"Сформированный поисковый запрос: {search_query}")
-
     data = perform_searches(search_query)
     formatted_data = format_results(data)
     current_date_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -247,13 +225,10 @@ def process_query(search_query: str) -> str:
         f"Текущая дата: {current_date_time}\n\n"
         "Ответ:"
     )
-
     logger.info("Анализ данных...")
     response = ollama_query(prompt)
-
     if not response or 'response' not in response:
         return "Ошибка обработки запроса."
-
     processing_time = time.time() - start_time
     sources = list(set(source_links))
     sources_text = "\n".join(f"{idx + 1}. {link}" for idx, link in enumerate(sources))
@@ -263,47 +238,37 @@ def process_query(search_query: str) -> str:
         f"{response['response']}\n\n"
         f"Источники:\n{sources_text}"
     )
-
 def web_server():
     app = Flask(__name__)
-
     @app.route('/')
     def index():
         return render_template('index.html')
-
     @app.route('/search', methods=['POST'])
     def handle_search():
         if lock.locked():
             return jsonify({'error': 'Система занята'}), 503
-
         with lock:
             query = request.form.get('query', '')
             if not query:
                 return jsonify({'error': 'Пустой запрос'}), 400
-
             result = process_query(query)
             return jsonify({
                 'query': query,
                 'result': result,
                 'sources': list(set(source_links))
             })
-
     logger.info(f"Сервер запущен на {BINDING_ADDRESS}:{BINDING_PORT}")
     app.run(host=BINDING_ADDRESS, port=BINDING_PORT)
-
 def cli_interface(query: str):
     print(f"\nОбработка запроса: {query}")
     result = process_query(query)
     print(f"\nРезультат:\n{result}")
-
 def main():
     parser = argparse.ArgumentParser(description=f"{APPNAME} v{VERSION}")
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument('-q', '--query', help="Поисковый запрос")
     group.add_argument('-s', '--server', action='store_true', help="Запустить веб-сервер")
-
     args = parser.parse_args()
-
     if args.server:
         SEARCH_TYPE = "web"
         web_server()
@@ -313,7 +278,6 @@ def main():
             print("Ошибка: Необходимо указать запрос с помощью -q/--query")
             sys.exit(1)
         cli_interface(args.query)
-
 if __name__ == "__main__":
     lock = threading.Lock()
     main()
