@@ -1,0 +1,4 @@
+duckduckgo_search==7.2.1
+Flask==3.1.0
+Requests==2.32.3
+setuptools==75.6.0
