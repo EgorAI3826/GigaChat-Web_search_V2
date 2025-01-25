@@ -12,7 +12,7 @@ from urllib.parse import urlparse
 from typing import Dict, List, Union
 
 APPNAME = 'GigaSearch_v3'
-VERSION = '0.7'
+VERSION = '3.2'
 
 BINDING_ADDRESS = '127.0.0.1'
 BINDING_PORT = 5000
