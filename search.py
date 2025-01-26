@@ -6,8 +6,7 @@ import logging
 import concurrent.futures
 import time
 import random
-# СДЕЛАЛ EgorAI3826
-# Настройка логирования с UTF-8
+#СДЕЛАЛ EgorAI3826
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
@@ -87,7 +86,7 @@ def advanced_parser(url):
             for el in soup.find_all(['p', 'h1', 'h2', 'h3'])
         ])
         logger.info(f"Успешно спаршен URL: {url}")
-        return content
+        return content[:3000]
     except Exception as e:
         logger.error(f"Ошибка парсинга {url}: {str(e)}")
         return ""
@@ -164,5 +163,5 @@ def main_pipeline(user_query):
     return final_response
 
 if __name__ == "__main__":
-    user_question = "погода завтра в москве?"
+    user_question = "что такое аюграм?"
     print(main_pipeline(user_question))
