@@ -7,7 +7,7 @@ import concurrent.futures
 import time
 import random
 
-# Made by EgorAI3826
+# Сделал EgorAI3826
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
@@ -20,11 +20,22 @@ logger = logging.getLogger(__name__)
 
 SYSTEM_PROMPTS = {
     "query_optimize": "Сгенерируй точный поисковый запрос для: '{query}'. Только запрос.",
-    "content_summary": "Выдели информацию связанную с '{query}' из текста. Текст: {text}",
+    "content_summary": (
+        "Выдели информацию связанную с '{query}' из текста. Формат ответа:\n"
+        "Ссылка: [URL источника]\n"
+        "Данные: [извлеченные факты]\n"
+        "Текст: {text}"
+    ),
     "final_answer": (
-        "Предоставь ответ на запрос '{query}' длиной 5-8 предложений, используя приведенные данные. "
-        "Будь оригинальным, точным и полезным. В конце ответа добавь раздел 'Источники:' с нумерованным списком ссылок. "
-        "Текущее время: {current_time}. Данные: {context}"
+        "Предоставь ответ на запрос '{query}' длиной 5-8 предложений, используя приведенные источники. "
+        "Будь оригинальным, точным и полезным. Указывай источники в формате [1][2] после соответствующих предложений. "
+        "В конце ответа добавь раздел 'Источники:' с нумерованным списком ссылок. "
+        "Пример:\n"
+        "Погода завтра в Москве будет солнечной [1]. Температура составит 20-25°C [2]. "
+        "Источники:\n"
+        "[1] https://example.com/weather\n"
+        "[2] https://example.com/meteo\n"
+        "Текущее время: {current_time}. Данные:\n{context}"
     )
 }
 
@@ -86,8 +97,8 @@ def advanced_parser(url):
             el.get_text(separator=' ', strip=True)
             for el in soup.find_all(['p', 'h1', 'h2', 'h3'])
         ])
-        logger.info(f"Ссылка: {url}\nДанные: {content[:100]}...")  # Логируем первые 100 символов
-        return content  # Убрали ограничение длины
+        logger.info(f"Ссылка: {url}\nДанные: {content[:100]}...")
+        return content
     except Exception as e:
         logger.error(f"Ошибка парсинга {url}: {str(e)}")
         return ""
@@ -102,7 +113,7 @@ def parallel_parser(urls):
         return [future.result() for future in concurrent.futures.as_completed(futures)]
 
 @log_execution
-def ai_content_processor(query, text):
+def ai_content_processor(query, text, url):
     try:
         response = ollama.chat(
             model=MODEL_NAME,
@@ -110,7 +121,7 @@ def ai_content_processor(query, text):
                 'role': 'user',
                 'content': SYSTEM_PROMPTS["content_summary"].format(
                     query=query,
-                    text=text  # Убрали обрезку текста
+                    text=f"URL: {url}\n{text[:15000]}"  # Ограничение длины для производительности
                 )
             }]
         )
@@ -123,8 +134,9 @@ def ai_content_processor(query, text):
 def build_final_response(query, sources):
     try:
         current_time = time.strftime("%Y-%m-%d %H:%M:%S")
-        context = "\n".join([f"[{i+1}] {s['summary']}" for i, s in enumerate(sources)])
-        urls = "\n".join([f"[{i+1}] {s['url']}" for i, s in enumerate(sources)])
+        context = []
+        for i, s in enumerate(sources):
+            context.append(f"[Источник {i+1}]\n{s['processed_content']}")
 
         response = ollama.chat(
             model=MODEL_NAME,
@@ -133,7 +145,7 @@ def build_final_response(query, sources):
                 'content': SYSTEM_PROMPTS["final_answer"].format(
                     query=query,
                     current_time=current_time,
-                    context=context + "\n\nСсылки на источники:\n" + urls
+                    context="\n\n".join(context)
                 )
             }]
         )
@@ -155,10 +167,10 @@ def main_pipeline(user_query):
     processed_sources = []
     for result, content in zip(search_results, parsed_contents):
         if content:
-            summary = ai_content_processor(user_query, content)
+            processed_content = ai_content_processor(user_query, content, result['url'])
             processed_sources.append({
                 'url': result['url'],
-                'summary': summary
+                'processed_content': processed_content
             })
 
     final_response = build_final_response(user_query, processed_sources)
