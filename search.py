@@ -6,7 +6,8 @@ import logging
 import concurrent.futures
 import time
 import random
-#СДЕЛАЛ EgorAI3826
+
+# Made by EgorAI3826
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
@@ -22,7 +23,7 @@ SYSTEM_PROMPTS = {
     "content_summary": "Выдели информацию связанную с '{query}' из текста. Текст: {text}",
     "final_answer": (
         "Предоставь ответ на запрос '{query}' длиной 5-8 предложений, используя приведенные данные. "
-        "Будь оригинальным, точным и полезным. Указывай источники как [1], [2] или [3] после каждого предложения (не только в конце). "
+        "Будь оригинальным, точным и полезным. В конце ответа добавь раздел 'Источники:' с нумерованным списком ссылок. "
         "Текущее время: {current_time}. Данные: {context}"
     )
 }
@@ -85,8 +86,8 @@ def advanced_parser(url):
             el.get_text(separator=' ', strip=True)
             for el in soup.find_all(['p', 'h1', 'h2', 'h3'])
         ])
-        logger.info(f"Успешно спаршен URL: {url}")
-        return content[:3000]
+        logger.info(f"Ссылка: {url}\nДанные: {content[:100]}...")  # Логируем первые 100 символов
+        return content  # Убрали ограничение длины
     except Exception as e:
         logger.error(f"Ошибка парсинга {url}: {str(e)}")
         return ""
@@ -109,7 +110,7 @@ def ai_content_processor(query, text):
                 'role': 'user',
                 'content': SYSTEM_PROMPTS["content_summary"].format(
                     query=query,
-                    text=text[:8000]
+                    text=text  # Убрали обрезку текста
                 )
             }]
         )
@@ -123,6 +124,8 @@ def build_final_response(query, sources):
     try:
         current_time = time.strftime("%Y-%m-%d %H:%M:%S")
         context = "\n".join([f"[{i+1}] {s['summary']}" for i, s in enumerate(sources)])
+        urls = "\n".join([f"[{i+1}] {s['url']}" for i, s in enumerate(sources)])
+
         response = ollama.chat(
             model=MODEL_NAME,
             messages=[{
@@ -130,7 +133,7 @@ def build_final_response(query, sources):
                 'content': SYSTEM_PROMPTS["final_answer"].format(
                     query=query,
                     current_time=current_time,
-                    context=context
+                    context=context + "\n\nСсылки на источники:\n" + urls
                 )
             }]
         )
@@ -163,5 +166,5 @@ def main_pipeline(user_query):
     return final_response
 
 if __name__ == "__main__":
-    user_question = "что такое аюграм?"
+    user_question = "погода завтра в москве"
     print(main_pipeline(user_question))
