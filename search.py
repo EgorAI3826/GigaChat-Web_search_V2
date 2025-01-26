@@ -7,7 +7,7 @@ import concurrent.futures
 import time
 import random
 
-# Сделал EgorAI3826
+# Настройка логирования с UTF-8
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
